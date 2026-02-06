@@ -1,0 +1,34 @@
+name = "messenger-bot-agent"
+main = "src/worker.ts"
+compatibility_date = "2024-02-06"
+compatibility_flags = ["nodejs_compat"]
+
+kv_namespaces = [
+  { binding = "KV_MAIN", id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", preview_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }
+]
+
+[[queues.producers]]
+  queue = "messenger-job-queue"
+  binding = "ANALYSIS_QUEUE"
+
+[[queues.consumers]]
+  queue = "messenger-job-queue"
+  binding = "pc-analysis-queue"
+  max_batch_size = 10
+  max_batch_timeout = 5
+
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "bot-assets"
+
+[[r2_buckets]]
+binding = "R2_IMAGES"
+bucket_name = "bot-images"
+
+[vars]
+MESSENGER_VERIFY_TOKEN = "TEST_TOKEN"
+FB_PAGE_ACCESS_TOKEN = ""
+GOOGLE_VISION_API_KEY = ""
+APP_BASE_URL = "http://localhost:8787"
+# HYBRID_ENABLED=0 in production vars by default
+HYBRID_ENABLED = "0"
