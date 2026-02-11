@@ -1,5 +1,7 @@
 import { Env, QueueJob } from './types';
 
-export async function enqueueJob(env: Env, job: QueueJob): Promise<void> {
-  await env.ANALYSIS_QUEUE.send(job);
+import { processJob } from './consumer';
+
+export async function enqueueJob(env: Env, job: QueueJob, ctx: ExecutionContext): Promise<void> {
+  ctx.waitUntil(processJob(job, env));
 }

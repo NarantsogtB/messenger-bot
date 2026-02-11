@@ -6,6 +6,9 @@ export interface Face {
     height: number;
   };
   landmarks?: any[];
+  blurLikelihood?: string;
+  underExposedLikelihood?: string;
+  totalFaces: number;
 }
 
 export async function detectFace(buffer: ArrayBuffer, apiKey: string): Promise<Face | null> {
@@ -67,6 +70,9 @@ export async function detectFace(buffer: ArrayBuffer, apiKey: string): Promise<F
 
   return {
     boundingBox: { x, y, width, height },
-    landmarks: faceData.landmarks
+    landmarks: faceData.landmarks,
+    blurLikelihood: faceData.blurLikelihood,
+    underExposedLikelihood: faceData.underExposedLikelihood,
+    totalFaces: annotations.length
   };
 }

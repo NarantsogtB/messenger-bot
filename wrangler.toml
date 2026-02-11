@@ -3,19 +3,10 @@ main = "src/worker.ts"
 compatibility_date = "2024-02-06"
 compatibility_flags = ["nodejs_compat"]
 
+# Top-level (default/dev) environment
 kv_namespaces = [
-  { binding = "KV_MAIN", id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", preview_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }
+  { binding = "KV_MAIN", id = "1d01b8f1b0ec4351873adadb0872f651" }
 ]
-
-[[queues.producers]]
-  queue = "messenger-job-queue"
-  binding = "ANALYSIS_QUEUE"
-
-[[queues.consumers]]
-  queue = "messenger-job-queue"
-  binding = "pc-analysis-queue"
-  max_batch_size = 10
-  max_batch_timeout = 5
 
 [[r2_buckets]]
 binding = "R2_ASSETS"
@@ -26,9 +17,21 @@ binding = "R2_IMAGES"
 bucket_name = "bot-images"
 
 [vars]
-MESSENGER_VERIFY_TOKEN = "TEST_TOKEN"
-FB_PAGE_ACCESS_TOKEN = ""
-GOOGLE_VISION_API_KEY = ""
+# These are for local development (wrangler dev)
 APP_BASE_URL = "http://localhost:8787"
-# HYBRID_ENABLED=0 in production vars by default
 HYBRID_ENABLED = "0"
+
+[env.production]
+kv_namespaces = [
+  { binding = "KV_MAIN", id = "1d01b8f1b0ec4351873adadb0872f651" }
+]
+r2_buckets = [
+  { binding = "R2_ASSETS", bucket_name = "bot-assets" },
+  { binding = "R2_IMAGES", bucket_name = "bot-images" }
+]
+[env.production.vars]
+APP_BASE_URL = "https://messenger-bot-agent-production.seasonal-color-analysis.workers.dev"
+HYBRID_ENABLED = "0"
+DEBUG_AUTO_PAID = "true"
+FEATURE_QUALITY_GATE = "1"
+FEATURE_ONBOARDING = "1"

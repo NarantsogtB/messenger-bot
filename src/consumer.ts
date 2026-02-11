@@ -10,6 +10,10 @@ import { isUserPaid } from './paid';
 import { handleChat, enableChat } from './chat';
 import { getPaidRingSelection } from './palette';
 import { getSession, updateSession } from './session';
+import { incrementMetric } from './metrics';
+import { checkQuality } from './image/quality';
+import * as jpeg from 'jpeg-js';
+
 
 export interface ProcessResult {
   ok: boolean;
@@ -17,20 +21,6 @@ export interface ProcessResult {
   season?: string;
   replyText?: string;
   error?: string;
-}
-
-export async function processQueue(batch: MessageBatch<QueueJob>, env: Env): Promise<void> {
-  for (const message of batch.messages) {
-    const job = message.body;
-    try {
-      const result = await processJob(job, env);
-      console.log(`Job ${job.messageId} result:`, result);
-      message.ack();
-    } catch (error) {
-      console.error(`Failed to process job ${job.messageId}:`, error);
-      message.retry();
-    }
-  }
 }
 
 export async function processJob(job: QueueJob, env: Env): Promise<ProcessResult> {
@@ -44,9 +34,13 @@ export async function processJob(job: QueueJob, env: Env): Promise<ProcessResult
 
   // 2. Process Logic
   let result: ProcessResult = { ok: true };
-  const session = await getSession(env, job.userId); // Assuming getSession handles null by creating default if needed, or we handle it here.
-  // Actually getSession returns Session | null. Creating if missing is safer.
+  const session = await getSession(env, job.userId); 
   const userSession = session || { hasSeenGreeting: false, isPaid: false };
+
+  // 1.5 Onboarding
+  if (env.FEATURE_ONBOARDING === '1' && !userSession.onboarded) {
+      await handleOnboarding(env, job.userId, userSession);
+  }
 
   if (job.intent === Action.MENU_PAID_ENTRY) {
       await handlePaidEntry(env, job.userId, userSession);
@@ -66,14 +60,20 @@ export async function processJob(job: QueueJob, env: Env): Promise<ProcessResult
           await handlePaidEntry(env, job.userId, { ...userSession, gender });
       } else {
           // Chat Flow
+          await incrementMetric(env, 'paid_chat_messages');
           await handleChat(env, job.userId, text);
       }
   } 
   else if (job.intent === Action.IMAGE_MESSAGE && job.imageUrl) {
+     await incrementMetric(env, 'analysis_total');
      const analysis = await handleImageAnalysis(env, job);
-     if (analysis) {
+     if (analysis && analysis.season) {
+       await incrementMetric(env, 'analysis_success');
        result.season = analysis.season;
        result.replyText = analysis.replyText;
+     } else if (analysis) {
+       // Quality fail handled inside handleImageAnalysis (sending message)
+       await incrementMetric(env, 'analysis_quality_fail');
      }
   }
 
@@ -117,6 +117,26 @@ async function handlePaidEntry(env: Env, userId: string, session: Session) {
     await sendPaidContent(env, userId, lastSeason as SeasonType, session.gender);
 }
 
+async function handleOnboarding(env: Env, userId: string, session: Session) {
+    const message = `--------------------------------
+💄 Өнгөний зөвлөгөөний үйлчилгээ
+--------------------------------
+
+Манай бот дараах үйлчилгээг үзүүлнэ:
+
+1️⃣ Селфи зураг илгээж өөрийн улирлын өнгийг тодорхойлох  
+2️⃣ Танд тохирох болон зайлсхийх өнгөний жагсаалт авах  
+3️⃣ (Төлбөртэй) Дэлгэрэнгүй палитр болон стиль зөвлөгөө  
+4️⃣ (Төлбөртэй) 5–10 асуултаар хувьчилсан зөвлөгөө авах  
+
+Зураг илгээж эхлээрэй 📸
+
+--------------------------------`;
+
+    await sendText(env, userId, message);
+    await updateSession(env, userId, { onboarded: true });
+}
+
 async function sendPaidContent(env: Env, userId: string, season: SeasonType, gender: 'male' | 'female') {
     // Intro
     await sendText(env, userId, `Таны ${season} улирлын дэлгэрэнгүй зөвлөгөө:`);
@@ -140,10 +160,9 @@ async function sendPaidContent(env: Env, userId: string, season: SeasonType, gen
     // I will assume `https://<worker-host>/assets/...`.
     // I'll add `WORKER_URL` to Env or Config. defaulting to a placeholder.
     
-    const baseUrl = (env as any).WORKER_URL || "https://example.com"; 
+    const baseUrl = env.APP_BASE_URL;
 
-    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/best.png`);
-    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/avoid.png`);
+    await sendImage(env, userId, `${baseUrl}/assets/summary/summary_${slug}.png`);
 
     // Random Cards (1..5)
     // Path: /assets/cards/<slug>/<gender>/accessory/1.png
@@ -158,7 +177,7 @@ async function sendPaidContent(env: Env, userId: string, season: SeasonType, gen
     await sendText(env, userId, "Чатлах эрх нээгдлээ! Та нэмэлт асуулт асуух боломжтой.");
 }
 
-async function handleImageAnalysis(env: Env, job: QueueJob): Promise<{ season?: string, replyText: string } | null> {
+async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResult> {
   const imageUrl = job.imageUrl!;
   
   // 1. Fetch & Hash
@@ -177,16 +196,34 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<{ season?: 
 
       const responseText = formatAnalysisResponse(seasonType);
       await sendText(env, job.userId, responseText);
-      return { season: seasonType, replyText: responseText };
+      return { ok: true, season: seasonType, replyText: responseText };
   }
 
   // 3. Vision API (Cost Control: ONE call)
+  await incrementMetric(env, 'vision_api_calls');
   const face = await detectFace(imageBuffer, env.GOOGLE_VISION_API_KEY);
   
   if (!face) {
       const text = "Царай тод харагдсан, гэрэл сайн зураг илгээнэ үү.";
       await sendText(env, job.userId, text);
-      return { replyText: text };
+      return { ok: false, replyText: text };
+  }
+
+  // 3.5 Quality Gate
+  if (env.FEATURE_QUALITY_GATE === '1') {
+      try {
+          const jpegData = jpeg.decode(imageBuffer);
+          const quality = checkQuality(face, jpegData.width, jpegData.height);
+          
+          if (!quality.isValid) {
+              const text = `Зураг тод биш эсвэл нүүр бүрэн харагдахгүй байна.\n(${quality.reason})\nЦонхны ойролцоо, нүүрээ ойртуулж дахин зураг илгээнэ үү.`;
+              await sendText(env, job.userId, text);
+              return { ok: false, replyText: text };
+          }
+      } catch (e) {
+          console.error("Quality check JPEG decode error:", e);
+          // Fallback: skip quality gate if decode fails but proceed with vision results
+      }
   }
 
   // 4. Analyze
@@ -201,5 +238,10 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<{ season?: 
   // 6. Respond
   const responseText = formatAnalysisResponse(season);
   await sendText(env, job.userId, responseText);
-  return { season, replyText: responseText };
+
+  // Send Summary Palette Image
+  const slug = season.toLowerCase().replace(' ', '_');
+  await sendImage(env, job.userId, `${env.APP_BASE_URL}/assets/summary/summary_${slug}.png`);
+
+  return { ok: true, season, replyText: responseText };
 }

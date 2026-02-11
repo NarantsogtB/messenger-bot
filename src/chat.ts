@@ -8,17 +8,18 @@ interface ChatState {
   turnsUsed: number;
 }
 
+import { isUserPaid } from './paid';
+
 export async function handleChat(env: Env, userId: string, text: string): Promise<void> {
+    
   const chatKey = `chat:${userId}`;
   const rawState = await env.KV_MAIN.get(chatKey);
   
   let state: ChatState = rawState ? JSON.parse(rawState) : { enabled: false, turnsUsed: 0 };
 
-  // 1. Check if chat enabled
-  if (!state.enabled) {
-      // If not enabled, we ignore or send standard "send image" reply? 
-      // Router usually handles this. If we got here, maybe logic implies we should check.
-      // But for safety:
+  // 1. Check if chat enabled or user is paid (debug mode)
+  const paid = await isUserPaid(env, userId);
+  if (!state.enabled && !paid) {
       await sendText(env, userId, "Чатлах эрх нээгдээгүй байна. Төлбөртэй хувилбарт шилжинэ үү.");
       return;
   }

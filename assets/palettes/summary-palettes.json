@@ -1,0 +1,82 @@
+{
+  "Light Spring": {
+    "keywords": ["CLEAR", "WARM", "LIGHT"],
+    "best": ["#FEE08B", "#FFB2A6", "#A7E08B", "#87CEEB", "#FFFACD", "#FA8072"],
+    "avoid": ["#333333", "#0000FF", "#800080", "#808080"]
+  },
+  "True Spring": {
+    "keywords": ["VIBRANT", "WARM", "FRESH"],
+    "best": ["#FFFF00", "#FFA500", "#FF4500", "#32CD32", "#FF69B4", "#40E0D0"],
+    "avoid": ["#000000", "#FFFFFF", "#708090", "#BC8F8F"]
+  },
+  "Bright Spring": {
+    "keywords": ["CLEAR", "WARM", "VIVID"],
+    "best": ["#FFFF00", "#FF00FF", "#00FFFF", "#00FF00", "#FF6347", "#FFD700"],
+    "avoid": ["#2F4F4F", "#556B2F", "#8B4513", "#D3D3D3"]
+  },
+  "Warm Spring": {
+    "keywords": ["WARM", "SUNNY", "RADIANT"],
+    "best": ["#FFD700", "#FF8C00", "#F08080", "#9ACD32", "#FFA07A", "#E9967A"],
+    "avoid": ["#191970", "#4B0082", "#006400", "#C0C0C0"]
+  },
+  "Light Summer": {
+    "keywords": ["SOFT", "COOL", "LIGHT"],
+    "best": ["#F0F8FF", "#E6E6FA", "#FFB6C1", "#B0E0E6", "#D8BFD8", "#ADD8E6"],
+    "avoid": ["#FFA500", "#FF0000", "#FFFF00", "#000000"]
+  },
+  "True Summer": {
+    "keywords": ["SOFT", "COOL", "CALM"],
+    "best": ["#B0C4DE", "#778899", "#6495ED", "#DA70D6", "#9370DB", "#BC8F8F"],
+    "avoid": ["#FFFF00", "#FFA500", "#006400", "#8B0000"]
+  },
+  "Soft Summer": {
+    "keywords": ["MUTED", "COOL", "SOFT"],
+    "best": ["#BDB76B", "#8FBC8F", "#778899", "#B0C4DE", "#BC8F8F", "#D8BFD8"],
+    "avoid": ["#000000", "#FFFFFF", "#FFD700", "#FF4500"]
+  },
+  "Cool Summer": {
+    "keywords": ["COOL", "FRESH", "BREEZY"],
+    "best": ["#1E90FF", "#4169E1", "#0000CD", "#8A2BE2", "#C71585", "#4682B4"],
+    "avoid": ["#FFD700", "#FF8C00", "#A52A2A", "#228B22"]
+  },
+  "Soft Autumn": {
+    "keywords": ["MUTED", "WARM", "EARTHY"],
+    "best": ["#DEB887", "#BC8F8F", "#CD853F", "#8B4513", "#556B2F", "#BDB76B"],
+    "avoid": ["#00FFFF", "#FF00FF", "#FFFFFF", "#000000"]
+  },
+  "True Autumn": {
+    "keywords": ["RICH", "WARM", "EARTHY"],
+    "best": ["#D2691E", "#A0522D", "#8B4513", "#CD853F", "#B8860B", "#556B2F"],
+    "avoid": ["#FFC0CB", "#E6E6FA", "#F0F8FF", "#D3D3D3"]
+  },
+  "Dark Autumn": {
+    "keywords": ["DEEP", "WARM", "RICH"],
+    "best": ["#8B0000", "#800000", "#A52A2A", "#556B2F", "#2F4F4F", "#4B0082"],
+    "avoid": ["#F0E68C", "#FFFACD", "#D3D3D3", "#E0FFFF"]
+  },
+  "Warm Autumn": {
+    "keywords": ["WARM", "GOLDEN", "RICH"],
+    "best": ["#FF8C00", "#DAA520", "#AA0000", "#228B22", "#8B4513", "#D2691E"],
+    "avoid": ["#191970", "#483D8B", "#2F4F4F", "#C0C0C0"]
+  },
+  "Dark Winter": {
+    "keywords": ["DEEP", "COOL", "VIVID"],
+    "best": ["#000000", "#191970", "#4B0082", "#8B0000", "#2F4F4F", "#FFFFFF"],
+    "avoid": ["#F5F5DC", "#FFE4B5", "#D2B48C", "#F4A460"]
+  },
+  "True Winter": {
+    "keywords": ["BOLD", "COOL", "CLEAR"],
+    "best": ["#0000FF", "#FF0000", "#00FF00", "#FFFF00", "#FFFFFF", "#000000"],
+    "avoid": ["#DAA520", "#CD853F", "#A52A2A", "#808000"]
+  },
+  "Bright Winter": {
+    "keywords": ["HIGH-CONTRAST", "COOL", "VIVID"],
+    "best": ["#FF00FF", "#00FFFF", "#00FF00", "#FF1493", "#0000FF", "#FFFFFF"],
+    "avoid": ["#8B4513", "#556B2F", "#BDB76B", "#F5DEB3"]
+  },
+  "Cool Winter": {
+    "keywords": ["COOL", "CRISP", "ICY"],
+    "best": ["#00008B", "#000080", "#483D8B", "#4B0082", "#800080", "#FFFFFF"],
+    "avoid": ["#FF8C00", "#FFD700", "#A52A2A", "#B8860B"]
+  }
+}

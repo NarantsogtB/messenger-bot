@@ -3,19 +3,22 @@ import { Action } from "./constants";
 
 export interface Env {
   KV_MAIN: KVNamespace;
-  ANALYSIS_QUEUE: Queue<QueueJob>;
   MESSENGER_VERIFY_TOKEN: string;
   MESSENGER_APP_SECRET: string;
   FB_PAGE_ACCESS_TOKEN: string;
   GOOGLE_VISION_API_KEY: string;
   R2_ASSETS: R2Bucket;
   R2_IMAGES: R2Bucket;
+  APP_BASE_URL: string;
+  FEATURE_QUALITY_GATE?: string;
+  FEATURE_ONBOARDING?: string;
 }
 
 export interface Session {
   hasSeenGreeting: boolean;
   isPaid: boolean;
   gender?: 'female' | 'male';
+  onboarded?: boolean;
 }
 
 export interface WebhookEntry {

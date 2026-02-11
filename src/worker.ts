@@ -3,7 +3,6 @@ import { Env, WebhookBody, QueueJob } from './types';
 import { verifyWebhook, verifySignature } from './webhook';
 import { detectIntent } from './router';
 import { getSession, createSession, updateSession } from './session';
-import { processQueue } from './consumer';
 import { enqueueJob } from './queue';
 import { Action } from './constants';
 
@@ -67,7 +66,7 @@ app.post('/webhook', async (c) => {
           timestamp: event.timestamp,
         };
 
-        await enqueueJob(c.env, job);
+        await enqueueJob(c.env, job, c.executionCtx);
       }
     }
     return c.text('EVENT_RECEIVED', 200);
@@ -78,5 +77,4 @@ app.post('/webhook', async (c) => {
 
 export default {
   fetch: app.fetch,
-  queue: processQueue,
 };

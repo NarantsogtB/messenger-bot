@@ -9,14 +9,18 @@
     "dev": "wrangler dev",
     "start": "wrangler dev",
     "test": "vitest",
-    "test:ci": "vitest run"
+    "test:ci": "vitest run",
+    "gen:summary": "tsx scripts/generate-summary-images.ts"
   },
   "dependencies": {
     "hono": "^4.0.0",
-    "jpeg-js": "^0.4.4"
+    "jpeg-js": "^0.4.4",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/node": "^25.2.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0",
     "vitest": "^4.0.18",
     "wrangler": "^3.0.0"
