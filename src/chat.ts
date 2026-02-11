@@ -30,13 +30,10 @@ export async function handleChat(env: Env, userId: string, text: string): Promis
       return;
   }
 
-  // 3. Process Chat (Mock LLM)
-  // In real implementation: call Gemini/OpenAI
+  // 3. Process Chat (Gemini LLM)
   try {
-      // Mock delay
-      // await new Promise(r => setTimeout(r, 1000));
-      
-      const reply = await mockLLMResponse(text);
+      const lastSeason = await env.KV_MAIN.get(`lastResult:${userId}`);
+      const reply = await callGemini(env, text, lastSeason || undefined);
       
       await sendText(env, userId, reply);
 
@@ -50,11 +47,46 @@ export async function handleChat(env: Env, userId: string, text: string): Promis
   }
 }
 
-async function mockLLMResponse(input: string): Promise<string> {
-    // Basic echo/heuristic for demo
-    if (input.includes('өнгө')) return "Танд цайвар өнгөнүүд илүү зохино.";
-    if (input.includes('үс')) return "Байгалийн бор өнгө танд зохимжтой.";
-    return "Таны асуултыг хүлээж авлаа. (AI хариулт энд байх болно)";
+async function callGemini(env: Env, input: string, season?: string): Promise<string> {
+    const apiKey = env.GOOGLE_VISION_API_KEY;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const prompt = `
+You are a professional seasonal color analysis assistant.
+Context:
+- User's Season: ${season || 'Unknown'}
+- Language: Mongolian
+
+User Question: ${input}
+
+Instructions:
+- Respond ONLY in Mongolian.
+- Be EXTREMELY concise (1-2 sentences maximum).
+- Goal: Minimize token usage while being helpful.
+- If the season is unknown, just ask them to send a photo.
+- Do not use unnecessary greetings or filler.
+`;
+
+    const body = {
+        contents: [{
+            parts: [{ text: prompt }]
+        }]
+    };
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        console.error("Gemini API Error:", err);
+        return "Уучлаарай, AI хариу нээхэд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.";
+    }
+
+    const data: any = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Зөвлөгөө өгөхөд алдаа гарлаа.";
 }
 
 export async function enableChat(env: Env, userId: string): Promise<void> {

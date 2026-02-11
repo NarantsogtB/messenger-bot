@@ -1,24 +1,28 @@
 import { SeasonType } from './season_types';
-import { PALETTES } from './palette/palettes';
-import { selectFreePreview } from './palette/selectBalanced';
+import { SEASON_DETAILS } from './season_data';
 
 export function formatAnalysisResponse(seasonType: SeasonType): string {
-  const palette = PALETTES[seasonType];
+  const details = SEASON_DETAILS[seasonType];
   
-  // Use selection logic (Free Mode: 6 best, 4 avoid, NAMES ONLY)
-  const bestPreview = selectFreePreview(palette.bestColors, 6);
-  const avoidPreview = selectFreePreview(palette.avoidColors, 4);
+  const response = `✨ ШИНЖИЛГЭЭНИЙ ХАРИУ / ANALYSIS RESULT ✨
 
-  const bestList = bestPreview.map(c => `• ${c.name}`).join('\n');
-  const avoidList = avoidPreview.map(c => `• ${c.name}`).join('\n');
+--------------------------------
+УЛИРЛЫН ТӨРӨЛ / SEASON TYPE:
+👉 ${seasonType} (${details.nameMn})
+--------------------------------
 
-  return `Таны улирлын төрөл: ${seasonType}.
+ТӨЛӨВ / CHARACTERISTICS:
+✅ ${details.keywordsMn}
+✅ ${details.keywordsEn}
 
-Танд дараах өнгөнүүд илүү зохино:
-${bestList}
+ЗӨВЛӨГӨӨ / ADVICE:
+🇲🇳 ${details.descriptionMn}
+🇺🇸 ${details.descriptionEn}
 
-Дараах өнгөнөөс зайлсхийгээрэй:
-${avoidList}
+--------------------------------
+👇 Таны өнгөний дэлгэрэнгүй палитрыг доорх зургаас харна уу.
+Check your detailed color palette in the image below.
+`;
 
-Зөвлөгөө: ${palette.advice}`;
+  return response;
 }

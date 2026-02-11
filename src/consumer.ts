@@ -12,7 +12,12 @@ import { getPaidRingSelection } from './palette';
 import { getSession, updateSession } from './session';
 import { incrementMetric } from './metrics';
 import { checkQuality } from './image/quality';
+import { SEASON_DETAILS } from './season_data';
 import * as jpeg from 'jpeg-js';
+import { Buffer } from 'node:buffer';
+
+// @ts-ignore
+globalThis.Buffer = Buffer;
 
 
 export interface ProcessResult {
@@ -138,8 +143,9 @@ async function handleOnboarding(env: Env, userId: string, session: Session) {
 }
 
 async function sendPaidContent(env: Env, userId: string, season: SeasonType, gender: 'male' | 'female') {
+    const details = SEASON_DETAILS[season];
     // Intro
-    await sendText(env, userId, `Таны ${season} улирлын дэлгэрэнгүй зөвлөгөө:`);
+    await sendText(env, userId, `Таны ${season} (${details.nameMn}) улирлын дэлгэрэнгүй зөвлөгөө / Detailed analysis for your ${season} season:`);
 
     // Ring Images (Best/Avoid)
     // Assuming bucket assets are at assets/rings/season_slug/best.png
@@ -204,7 +210,7 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResu
   const face = await detectFace(imageBuffer, env.GOOGLE_VISION_API_KEY);
   
   if (!face) {
-      const text = "Царай тод харагдсан, гэрэл сайн зураг илгээнэ үү.";
+      const text = "Царай тод харагдсан, гэрэл сайн зураг илгээнэ үү. / Please send a clear photo with good lighting where your face is visible.";
       await sendText(env, job.userId, text);
       return { ok: false, replyText: text };
   }
