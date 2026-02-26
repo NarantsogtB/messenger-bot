@@ -2,7 +2,8 @@ import { Env, QueueJob, Session } from './types';
 import { Action } from './constants';
 import { fetchImage, hashImage } from './image/fetch';
 import { detectFace } from './image/vision';
-import { analyzeSkinTone } from './image/analysis';
+import { analyzeWithPythonAPI } from './image/python_api';
+import { mapResultToSeason } from './decision_engine';
 import { formatAnalysisResponse } from './formatter';
 import { sendText, sendImage, sendQuickReplies } from './messenger';
 import { SeasonType } from './season_types';
@@ -123,20 +124,9 @@ async function handlePaidEntry(env: Env, userId: string, session: Session) {
 }
 
 async function handleOnboarding(env: Env, userId: string, session: Session) {
-    const message = `--------------------------------
-💄 Өнгөний зөвлөгөөний үйлчилгээ
---------------------------------
+    const message = `Сайн байна уу? Танд энэ өдрийн мэнд хүргэе. Би таны илгээсэн зурагт шинжилгээ хийж, таны төрөлх өнгөний улирлыг тодорхойлоход бэлэн байна.
 
-Манай бот дараах үйлчилгээг үзүүлнэ:
-
-1️⃣ Селфи зураг илгээж өөрийн улирлын өнгийг тодорхойлох  
-2️⃣ Танд тохирох болон зайлсхийх өнгөний жагсаалт авах  
-3️⃣ (Төлбөртэй) Дэлгэрэнгүй палитр болон стиль зөвлөгөө  
-4️⃣ (Төлбөртэй) 5–10 асуултаар хувьчилсан зөвлөгөө авах  
-
-Зураг илгээж эхлээрэй 📸
-
---------------------------------`;
+(Disclaimer: Шинжилгээний хариу гэрэлтүүлгээс хамаарч бага зэрэг зөрөх магадлалтайг анхаарна уу).`;
 
     await sendText(env, userId, message);
     await updateSession(env, userId, { onboarded: true });
@@ -144,41 +134,31 @@ async function handleOnboarding(env: Env, userId: string, session: Session) {
 
 async function sendPaidContent(env: Env, userId: string, season: SeasonType, gender: 'male' | 'female') {
     const details = SEASON_DETAILS[season];
-    // Intro
-    await sendText(env, userId, `Таны ${season} (${details.nameMn}) улирлын дэлгэрэнгүй зөвлөгөө / Detailed analysis for your ${season} season:`);
-
-    // Ring Images (Best/Avoid)
-    // Assuming bucket assets are at assets/rings/season_slug/best.png
-    // We need slug from seasonType e.g. "true_winter" -> "true-winter" or just use enum string if filenames match?
-    // Let's normalize: lowercase, replace spaces with underscores or logic. 
-    // SeasonType strings are like "True Winter". Filenames usually safe to use "true_winter" or "true-winter".
-    // I'll use simple replace space with underscore lowercase.
-    const slug = season.toLowerCase().replace(' ', '_');
-    
-    // Using the worker's own domain for asset proxy?
-    // We don't know the worker domain inside the worker easily without env var, OR we construct R2 public URL if public access enabled?
-    // Requirement A.4 says "GET /assets/* -> fetch object".
-    // So we need the worker hostname.
-    // Env usually doesn't have it.
-    // However, for Messenger API, we probably need absolute URL.
-    // I will assume for now we use a placeholder or generic domain, OR I add WORKER_URL to Env.
-    // Prompt said "Paid sends ring palette + cards (static assets URLs)".
-    // I will assume `https://<worker-host>/assets/...`.
-    // I'll add `WORKER_URL` to Env or Config. defaulting to a placeholder.
+    const mapping = mapResultToSeason(season, 'Medium'); // Use Medium if contrast not cached? 
+    // Actually, we can fetch lastContrast from KV
+    const contrast = await env.KV_MAIN.get(`lastContrast:${userId}`) || 'Medium';
+    const slug = mapResultToSeason(season, contrast).templateId;
     
     const baseUrl = env.APP_BASE_URL;
 
-    await sendImage(env, userId, `${baseUrl}/assets/summary/summary_${slug}.png`);
+    // 1. Paid Greeting
+    await sendText(env, userId, "Баярлалаа. Төлбөр баталгаажлаа. Танд зориулсан 40 өнгө бүхий 'Ring Palette' болон таны зайлсхийх ёстой өнгөнүүдийн жагсаалтыг бэлдлээ. Мөн таны нүүр будалт, үсний өнгө, хувцаслалтад зориулсан мэргэжлийн зөвлөмжийг хүргэж байна.");
 
-    // Random Cards (1..5)
-    // Path: /assets/cards/<slug>/<gender>/accessory/1.png
-    const r = (max: number) => Math.floor(Math.random() * max) + 1;
+    // 2. Deliver Rings
+    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/harmony_rings.png`);
+    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/avoid_rings.png`);
+
+    // 3. Deliver recommendations (Example logic: reuse cards or send text)
+    // The prompt says "Deliver the mapped harmony_rings.png and avoid_rings.png".
+    // And "Professional recommendations for makeup, hair, clothing".
     
-    await sendImage(env, userId, `${baseUrl}/assets/cards/${slug}/${gender}/accessory/${r(5)}.png`);
-    await sendImage(env, userId, `${baseUrl}/assets/cards/${slug}/${gender}/hair/${r(5)}.png`);
-    await sendImage(env, userId, `${baseUrl}/assets/cards/${slug}/${gender}/makeup/${r(5)}.png`);
+    await sendText(env, userId, `✨ МЭРГЭЖЛИЙН ЗӨВЛӨМЖ (${details.nameMn}) ✨
 
-    // Enable Chat
+Үсний өнгө: ${details.descriptionMn}
+Нүүр будалт: Танд ${details.keywordsMn} өнгөнүүд гайхалтай зохино.
+Хувцаслалт: ${details.keywordsMn} туяатай материалуудыг сонгоорой.`);
+
+    // 4. Enable Chat
     await enableChat(env, userId);
     await sendText(env, userId, "Чатлах эрх нээгдлээ! Та нэмэлт асуулт асуух боломжтой.");
 }
@@ -192,62 +172,67 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResu
   const cacheKey = `imagehash:${hash}`;
 
   // 2. Check Cache
-  const cachedResult = await env.KV_MAIN.get(cacheKey);
-  if (cachedResult) {
+  const cachedData = await env.KV_MAIN.get(cacheKey);
+  let season: string;
+  let contrast: string;
+
+  if (cachedData) {
       console.log('Cache Hit for image:', hash);
-      const seasonType = cachedResult as SeasonType;
+      const data = JSON.parse(cachedData);
+      season = data.season;
+      contrast = data.contrast;
+  } else {
+      // 3. Vision API (Optional Quality Check)
+      await incrementMetric(env, 'vision_api_calls');
+      const face = await detectFace(imageBuffer, env.GOOGLE_VISION_API_KEY);
       
-      // Store Last Result for User
-      await env.KV_MAIN.put(`lastResult:${job.userId}`, seasonType);
-
-      const responseText = formatAnalysisResponse(seasonType);
-      await sendText(env, job.userId, responseText);
-      return { ok: true, season: seasonType, replyText: responseText };
-  }
-
-  // 3. Vision API (Cost Control: ONE call)
-  await incrementMetric(env, 'vision_api_calls');
-  const face = await detectFace(imageBuffer, env.GOOGLE_VISION_API_KEY);
-  
-  if (!face) {
-      const text = "Царай тод харагдсан, гэрэл сайн зураг илгээнэ үү. / Please send a clear photo with good lighting where your face is visible.";
-      await sendText(env, job.userId, text);
-      return { ok: false, replyText: text };
-  }
-
-  // 3.5 Quality Gate
-  if (env.FEATURE_QUALITY_GATE === '1') {
-      try {
-          const jpegData = jpeg.decode(imageBuffer);
-          const quality = checkQuality(face, jpegData.width, jpegData.height);
-          
-          if (!quality.isValid) {
-              const text = `Зураг тод биш эсвэл нүүр бүрэн харагдахгүй байна.\n(${quality.reason})\nЦонхны ойролцоо, нүүрээ ойртуулж дахин зураг илгээнэ үү.`;
-              await sendText(env, job.userId, text);
-              return { ok: false, replyText: text };
-          }
-      } catch (e) {
-          console.error("Quality check JPEG decode error:", e);
-          // Fallback: skip quality gate if decode fails but proceed with vision results
+      if (!face) {
+          const text = "Царай тод харагдсан, гэрэл сайн зураг илгээнэ үү. / Please send a clear photo with good lighting where your face is visible.";
+          await sendText(env, job.userId, text);
+          return { ok: false, replyText: text };
       }
+
+      // 4. Python API Analysis
+      await incrementMetric(env, 'python_api_calls');
+      const pythonResult = await analyzeWithPythonAPI(env, imageBuffer);
+      
+      if (!pythonResult) {
+          const text = "Уучлаарай, шинжилгээ хийхэд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.";
+          await sendText(env, job.userId, text);
+          return { ok: false, replyText: text };
+      }
+
+      season = pythonResult.season;
+      contrast = pythonResult.contrast;
+      
+      // 5. Cache Result (TTL 7 days)
+      await env.KV_MAIN.put(cacheKey, JSON.stringify({ season, contrast }), { expirationTtl: 604800 });
   }
 
-  // 4. Analyze
-  const { season } = analyzeSkinTone(imageBuffer, face);
-  
-  // 5. Cache Result (TTL 7 days)
-  await env.KV_MAIN.put(cacheKey, season, { expirationTtl: 604800 });
+  // 6. Decision Engine Mapping
+  const mapping = mapResultToSeason(season, contrast);
+  const seasonType = mapping.seasonType;
+  const slug = mapping.templateId;
   
   // Store Last Result for User
-  await env.KV_MAIN.put(`lastResult:${job.userId}`, season);
+  await env.KV_MAIN.put(`lastResult:${job.userId}`, seasonType);
+  await env.KV_MAIN.put(`lastContrast:${job.userId}`, contrast);
 
-  // 6. Respond
-  const responseText = formatAnalysisResponse(season);
+  // 7. Free Phase Response
+  const details = SEASON_DETAILS[seasonType];
+  const responseText = `Таны шинжилгээний хариу гарлаа. Та ${details.nameMn} төрлийн хүн байна.
+
+Танд хамгийн сайн зохих хэдэн өнгөний жишээг харуулж байна. Дэлгэрэнгүй 40 өнгө бүхий палитраа харахыг хүсвэл төлбөрөө төлнө үү.`;
+  
   await sendText(env, job.userId, responseText);
-
-  // Send Summary Palette Image
-  const slug = season.toLowerCase().replace(' ', '_');
   await sendImage(env, job.userId, `${env.APP_BASE_URL}/assets/summary/summary_${slug}.png`);
 
-  return { ok: true, season, replyText: responseText };
+  // 8. Auto-send Paid Content if already paid
+  const paid = await isUserPaid(env, job.userId);
+  if (paid) {
+      const session = await getSession(env, job.userId);
+      await sendPaidContent(env, job.userId, seasonType, session?.gender || 'female');
+  }
+
+  return { ok: true, season: seasonType, replyText: responseText };
 }

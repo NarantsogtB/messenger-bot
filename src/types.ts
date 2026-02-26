@@ -12,6 +12,7 @@ export interface Env {
   APP_BASE_URL: string;
   FEATURE_QUALITY_GATE?: string;
   FEATURE_ONBOARDING?: string;
+  PYTHON_API_URL: string;
 }
 
 export interface Session {

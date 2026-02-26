@@ -49,22 +49,25 @@ export async function handleChat(env: Env, userId: string, text: string): Promis
 
 async function callGemini(env: Env, input: string, season?: string): Promise<string> {
     const apiKey = env.GOOGLE_VISION_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
+    // Or gemini-2.0-flash-lite-preview-02-05 if stable not yet in v1?
+    // According to search, 2.0-flash is out. Let's use gemini-2.0-flash-lite
 
     const prompt = `
-You are a professional seasonal color analysis assistant.
-Context:
-- User's Season: ${season || 'Unknown'}
-- Language: Mongolian
+You are a Professional Seasonal Color Stylist AI.
+Your objective is to provide expert advice on seasonal color analysis, including clothing, makeup, and hair color recommendations based on the user's analyzed features.
 
-User Question: ${input}
+Context:
+- User's Analyzed Season: ${season || 'Шинжилгээ хийгдээгүй'}
+- Language: Strictly Mongolian
 
 Instructions:
-- Respond ONLY in Mongolian.
-- Be EXTREMELY concise (1-2 sentences maximum).
-- Goal: Minimize token usage while being helpful.
-- If the season is unknown, just ask them to send a photo.
-- Do not use unnecessary greetings or filler.
+- Respond ONLY in natural, professional, and grammatically correct Mongolian.
+- Maintain a helpful, polite, and styling-focused tone.
+- Be concise but expert (2-3 sentences max).
+- If the user's season is unknown, politely encourage them to send a clear photo for analysis.
+- Do not use filler or English terms where a Mongolian equivalent exists.
+- Focus strictly on seasonal color styling.
 `;
 
     const body = {
@@ -80,9 +83,12 @@ Instructions:
     });
 
     if (!response.ok) {
+        if (response.status === 429) {
+            return "⏳ AI үйлчилгээ түр ачаалалтай байна.Өдөр тутмын үнэгүй эрх хэтэрсэн байж болзошгүй.15–30 минутын дараа дахин оролдоно уу.";
+        }
         const err = await response.text();
         console.error("Gemini API Error:", err);
-        return "Уучлаарай, AI хариу нээхэд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.";
+        return "Уучлаарай, AI хариу өгөхөд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.";
     }
 
     const data: any = await response.json();

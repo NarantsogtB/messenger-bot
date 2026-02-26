@@ -21,6 +21,9 @@ bucket_name = "bot-images"
 APP_BASE_URL = "http://localhost:8787"
 HYBRID_ENABLED = "0"
 
+[vars]
+PYTHON_API_URL="https://color-analysis-api-957333459679.us-east1.run.app"
+
 [env.production]
 kv_namespaces = [
   { binding = "KV_MAIN", id = "1d01b8f1b0ec4351873adadb0872f651" }
@@ -35,3 +38,4 @@ HYBRID_ENABLED = "0"
 DEBUG_AUTO_PAID = "true"
 FEATURE_QUALITY_GATE = "1"
 FEATURE_ONBOARDING = "1"
+PYTHON_API_URL="https://color-analysis-api-957333459679.us-east1.run.app"
