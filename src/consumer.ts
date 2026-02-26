@@ -147,8 +147,8 @@ async function sendPaidContent(env: Env, userId: string, season: SeasonType, gen
         const faceBuffer = await userFace.arrayBuffer();
         
         // Define templates (Stored in R2_ASSETS)
-        const harmonyTemplate = `${baseUrl}/assets/rings/${slug}/harmony_rings.png`;
-        const avoidTemplate = `${baseUrl}/assets/rings/${slug}/avoid_rings.png`;
+        const harmonyTemplate = `${baseUrl}/assets/palettes/harmony/${slug}-harmony.png`;
+        const avoidTemplate = `${baseUrl}/assets/palettes/avoid/${slug}-avoid.png`;
 
         // Compose Harmony
         const harmonyComposed = await composePersonalizedPalette(env, faceBuffer, harmonyTemplate);
@@ -167,8 +167,8 @@ async function sendPaidContent(env: Env, userId: string, season: SeasonType, gen
         }
     } else {
         // Fallback to static rings if face not found
-        await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/harmony_rings.png`);
-        await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/avoid_rings.png`);
+        await sendImage(env, userId, `${baseUrl}/assets/palettes/harmony/${slug}-harmony.png`);
+        await sendImage(env, userId, `${baseUrl}/assets/palettes/avoid/${slug}-avoid.png`);
     }
 
     // 3. Deliver recommendations
@@ -249,7 +249,7 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResu
 Танд хамгийн сайн зохих хэдэн өнгөний жишээг харуулж байна. Дэлгэрэнгүй 40 өнгө бүхий палитраа харахыг хүсвэл төлбөрөө төлнө үү.`;
   
   await sendText(env, job.userId, responseText);
-  await sendImage(env, job.userId, `${env.APP_BASE_URL}/assets/summary/summary_${slug}.png`);
+  await sendImage(env, job.userId, `${env.APP_BASE_URL}/assets/summary/summary-${slug}.png`);
 
   // 8. Auto-send Paid Content if already paid
   const paid = await isUserPaid(env, job.userId);

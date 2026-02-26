@@ -11,7 +11,8 @@ export async function handleAssetRequest(request: Request, env: Env): Promise<Re
       return new Response('Not Found', { status: 404 });
   }
 
-  const object = await env.R2_ASSETS.get(key);
+  const r2Key = key.replace('assets/', '');
+  const object = await env.R2_ASSETS.get(r2Key);
 
   if (object === null) {
       // Fallback logic could go here, e.g. try default image
