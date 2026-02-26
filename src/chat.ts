@@ -49,9 +49,8 @@ export async function handleChat(env: Env, userId: string, text: string): Promis
 
 async function callGemini(env: Env, input: string, season?: string): Promise<string> {
     const apiKey = env.GOOGLE_VISION_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`;
-    // Or gemini-2.0-flash-lite-preview-02-05 if stable not yet in v1?
-    // According to search, 2.0-flash is out. Let's use gemini-2.0-flash-lite
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // Based on deprecation notes, 2.0-flash is replaced by 2.5-flash
 
     const prompt = `
 You are a Professional Seasonal Color Stylist AI.
@@ -83,11 +82,13 @@ Instructions:
     });
 
     if (!response.ok) {
-        if (response.status === 429) {
+        const status = response.status;
+        const errBody = await response.text();
+        console.error(`Gemini API Error (Status ${status}):`, errBody);
+        
+        if (status === 429) {
             return "⏳ AI үйлчилгээ түр ачаалалтай байна.Өдөр тутмын үнэгүй эрх хэтэрсэн байж болзошгүй.15–30 минутын дараа дахин оролдоно уу.";
         }
-        const err = await response.text();
-        console.error("Gemini API Error:", err);
         return "Уучлаарай, AI хариу өгөхөд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу.";
     }
 

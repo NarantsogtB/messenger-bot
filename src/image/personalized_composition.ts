@@ -3,13 +3,16 @@ import { Env } from '../types';
 export async function composePersonalizedPalette(
   env: Env, 
   userImageBuffer: ArrayBuffer, 
-  templateUrl: string
+  templateBuffer: ArrayBuffer
 ): Promise<ArrayBuffer | null> {
-  const url = `${env.PYTHON_API_URL}/compose?template_url=${encodeURIComponent(templateUrl)}`;
+  const url = `${env.PYTHON_API_URL}/compose`;
   
   const formData = new FormData();
-  const blob = new Blob([userImageBuffer], { type: 'image/jpeg' });
-  formData.append('file', blob, 'image.jpg');
+  const faceBlob = new Blob([userImageBuffer], { type: 'image/jpeg' });
+  formData.append('file', faceBlob, 'user.jpg');
+  
+  const templateBlob = new Blob([templateBuffer], { type: 'image/png' });
+  formData.append('template', templateBlob, 'template.png');
 
   try {
     const response = await fetch(url, {

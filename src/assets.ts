@@ -23,8 +23,10 @@ export async function handleAssetRequest(request: Request, env: Env): Promise<Re
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
-  // Cache for a long time (e.g. 1 year) because these are static assets
   headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  
+  if (key.endsWith('.png')) headers.set('Content-Type', 'image/png');
+  if (key.endsWith('.jpg') || key.endsWith('.jpeg')) headers.set('Content-Type', 'image/jpeg');
 
   return new Response(object.body, {
     headers,
@@ -44,8 +46,10 @@ export async function handleUserImageRequest(request: Request, env: Env): Promis
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
-  // Cache user images for a shorter time maybe? or same.
   headers.set('Cache-Control', 'public, max-age=604800, immutable');
+
+  if (key.endsWith('.png')) headers.set('Content-Type', 'image/png');
+  if (key.endsWith('.jpg') || key.endsWith('.jpeg')) headers.set('Content-Type', 'image/jpeg');
 
   return new Response(object.body, {
     headers,

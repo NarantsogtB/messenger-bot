@@ -124,7 +124,7 @@ async function handlePaidEntry(env: Env, userId: string, session: Session) {
 }
 
 async function handleOnboarding(env: Env, userId: string, session: Session) {
-    const message = `Сайн байна уу? Танд энэ өдрийн мэнд хүргэе. Би таны илгээсэн зурагт шинжилгээ хийж, таны төрөлх өнгөний улирлыг тодорхойлоход бэлэн байна.
+    const message = `Сайн байна уу? Танд энэ өдрийн мэнд хүргэе. Би таны илгээсэн зурагт дүн шинжилгээ хийж, таны төрөлх өнгөний улирлыг тодорхойлоход бэлэн байна.
 
 (Disclaimer: Шинжилгээний хариу гэрэлтүүлгээс хамаарч бага зэрэг зөрөх магадлалтайг анхаарна уу).`;
 
@@ -139,36 +139,63 @@ async function sendPaidContent(env: Env, userId: string, season: SeasonType, gen
     const baseUrl = env.APP_BASE_URL;
 
     // 1. Paid Greeting
-    await sendText(env, userId, "Баярлалаа. Төлбөр баталгаажлаа. Танд зориулсан 40 өнгө бүхий 'Ring Palette' болон таны зайлсхийх ёстой өнгөнүүдийн жагсаалтыг бэлдлээ. Мөн таны нүүр будалт, үсний өнгө, хувцаслалтад зориулсан мэргэжлийн зөвлөмжийг хүргэж байна.");
+    await sendText(env, userId, "Баярлалаа. Төлбөр баталгаажлаа. Танд хамгийн сайн зохих (Harmony) болон зайлсхийх (Avoid) өнгөнүүдийг таны царай дээр байрлуулж, өнгөний 'Ring Palette' бэлдлээ. Мөн таны нүүр будалт, үсний өнгө, хувцаслалтад зориулсан мэргэжлийн зөвлөмжийг хүргэж байна.");
 
     // 2. Personalized Composition
     const userFace = await env.R2_IMAGES.get(`user_face_${userId}.jpg`);
+    
+    // Define R2 keys for templates
+    const harmonyKey = `palettes/harmony/${slug}-harmony.png`;
+    const avoidKey = `palettes/avoid/${slug}-avoid.png`;
+
+    // Static URLs for fallback/send
+    const harmonyUrl = `${baseUrl}/assets/${harmonyKey}`;
+    const avoidUrl = `${baseUrl}/assets/${avoidKey}`;
+
     if (userFace) {
         const faceBuffer = await userFace.arrayBuffer();
         
-        // Define templates (Stored in R2_ASSETS)
-        const harmonyTemplate = `${baseUrl}/assets/palettes/harmony/${slug}-harmony.png`;
-        const avoidTemplate = `${baseUrl}/assets/palettes/avoid/${slug}-avoid.png`;
+        // Fetch Template Buffers from R2
+        const harmonyTemplate = await env.R2_ASSETS.get(harmonyKey);
+        const avoidTemplate = await env.R2_ASSETS.get(avoidKey);
 
-        // Compose Harmony
-        const harmonyComposed = await composePersonalizedPalette(env, faceBuffer, harmonyTemplate);
-        if (harmonyComposed) {
-            const key = `composed/${userId}/harmony.png`;
-            await env.R2_IMAGES.put(key, harmonyComposed);
-            await sendImage(env, userId, `${baseUrl}/user-images/${key}`);
-        }
+        if (!harmonyTemplate || !avoidTemplate) {
+            console.error(`[ERROR] Template assets missing in R2: ${harmonyKey} or ${avoidKey}`);
+            await sendImage(env, userId, harmonyUrl);
+            await sendImage(env, userId, avoidUrl);
+        } else {
+            const hBuffer = await harmonyTemplate.arrayBuffer();
+            const aBuffer = await avoidTemplate.arrayBuffer();
 
-        // Compose Avoid
-        const avoidComposed = await composePersonalizedPalette(env, faceBuffer, avoidTemplate);
-        if (avoidComposed) {
-            const key = `composed/${userId}/avoid.png`;
-            await env.R2_IMAGES.put(key, avoidComposed);
-            await sendImage(env, userId, `${baseUrl}/user-images/${key}`);
+            // Compose Harmony
+            const harmonyComposed = await composePersonalizedPalette(env, faceBuffer, hBuffer);
+            if (harmonyComposed) {
+                const key = `composed/${userId}/harmony.png`;
+                await env.R2_IMAGES.put(key, harmonyComposed);
+                const fullUrl = `${baseUrl}/user-images/${key}`;
+                console.log(`[DEBUG] Sending Composed Harmony: ${fullUrl}`);
+                await sendImage(env, userId, fullUrl);
+            } else {
+                console.log(`[DEBUG] Sending Static Harmony: ${harmonyUrl}`);
+                await sendImage(env, userId, harmonyUrl);
+            }
+
+            // Compose Avoid
+            const avoidComposed = await composePersonalizedPalette(env, faceBuffer, aBuffer);
+            if (avoidComposed) {
+                const key = `composed/${userId}/avoid.png`;
+                await env.R2_IMAGES.put(key, avoidComposed);
+                const fullUrl = `${baseUrl}/user-images/${key}`;
+                console.log(`[DEBUG] Sending Composed Avoid: ${fullUrl}`);
+                await sendImage(env, userId, fullUrl);
+            } else {
+                console.log(`[DEBUG] Sending Static Avoid: ${avoidUrl}`);
+                await sendImage(env, userId, avoidUrl);
+            }
         }
     } else {
-        // Fallback to static rings if face not found
-        await sendImage(env, userId, `${baseUrl}/assets/palettes/harmony/${slug}-harmony.png`);
-        await sendImage(env, userId, `${baseUrl}/assets/palettes/avoid/${slug}-avoid.png`);
+        await sendImage(env, userId, harmonyUrl);
+        await sendImage(env, userId, avoidUrl);
     }
 
     // 3. Deliver recommendations
@@ -246,10 +273,12 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResu
   const details = SEASON_DETAILS[seasonType];
   const responseText = `Таны шинжилгээний хариу гарлаа. Та ${details.nameMn} төрлийн хүн байна.
 
-Танд хамгийн сайн зохих хэдэн өнгөний жишээг харуулж байна. Дэлгэрэнгүй 40 өнгө бүхий палитраа харахыг хүсвэл төлбөрөө төлнө үү.`;
+Танд хамгийн сайн зохих өнгөнүүдийг таны царай дээр байрлуулсан хувийн 'Ring Palette' болон мэргэжлийн дэлгэрэнгүй зөвлөмжийг харахыг хүсвэл төлбөрөө төлнө үү.`;
   
   await sendText(env, job.userId, responseText);
-  await sendImage(env, job.userId, `${env.APP_BASE_URL}/assets/summary/summary-${slug}.png`);
+  const summaryUrl = `${env.APP_BASE_URL}/assets/summary/summary-${slug}.png`;
+  console.log(`[DEBUG] Sending Summary Palette: ${summaryUrl}`);
+  await sendImage(env, job.userId, summaryUrl);
 
   // 8. Auto-send Paid Content if already paid
   const paid = await isUserPaid(env, job.userId);

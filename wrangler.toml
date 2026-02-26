@@ -20,8 +20,6 @@ bucket_name = "bot-images"
 # These are for local development (wrangler dev)
 APP_BASE_URL = "http://localhost:8787"
 HYBRID_ENABLED = "0"
-
-[vars]
 PYTHON_API_URL="https://color-analysis-api-957333459679.us-east1.run.app"
 
 [env.production]
