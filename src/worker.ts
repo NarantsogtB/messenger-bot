@@ -6,11 +6,12 @@ import { getSession, createSession, updateSession } from './session';
 import { enqueueJob } from './queue';
 import { Action } from './constants';
 
-import { handleAssetRequest } from './assets';
+import { handleAssetRequest, handleUserImageRequest } from './assets';
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.get('/assets/*', (c) => handleAssetRequest(c.req.raw, c.env));
+app.get('/user-images/*', (c) => handleUserImageRequest(c.req.raw, c.env));
 app.get('/webhook', verifyWebhook);
 
 app.post('/webhook', async (c) => {

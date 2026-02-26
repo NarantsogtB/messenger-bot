@@ -29,3 +29,24 @@ export async function handleAssetRequest(request: Request, env: Env): Promise<Re
     headers,
   });
 }
+
+export async function handleUserImageRequest(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const key = url.pathname.replace('/user-images/', '');
+
+  const object = await env.R2_IMAGES.get(key);
+
+  if (object === null) {
+      return new Response('Image Not Found', { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  // Cache user images for a shorter time maybe? or same.
+  headers.set('Cache-Control', 'public, max-age=604800, immutable');
+
+  return new Response(object.body, {
+    headers,
+  });
+}

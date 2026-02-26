@@ -4,6 +4,7 @@ import { fetchImage, hashImage } from './image/fetch';
 import { detectFace } from './image/vision';
 import { analyzeWithPythonAPI } from './image/python_api';
 import { mapResultToSeason } from './decision_engine';
+import { composePersonalizedPalette } from './image/personalized_composition';
 import { formatAnalysisResponse } from './formatter';
 import { sendText, sendImage, sendQuickReplies } from './messenger';
 import { SeasonType } from './season_types';
@@ -15,10 +16,9 @@ import { incrementMetric } from './metrics';
 import { checkQuality } from './image/quality';
 import { SEASON_DETAILS } from './season_data';
 import * as jpeg from 'jpeg-js';
-import { Buffer } from 'node:buffer';
 
 // @ts-ignore
-globalThis.Buffer = Buffer;
+globalThis.Buffer = globalThis.Buffer || Uint8Array;
 
 
 export interface ProcessResult {
@@ -134,24 +134,44 @@ async function handleOnboarding(env: Env, userId: string, session: Session) {
 
 async function sendPaidContent(env: Env, userId: string, season: SeasonType, gender: 'male' | 'female') {
     const details = SEASON_DETAILS[season];
-    const mapping = mapResultToSeason(season, 'Medium'); // Use Medium if contrast not cached? 
-    // Actually, we can fetch lastContrast from KV
     const contrast = await env.KV_MAIN.get(`lastContrast:${userId}`) || 'Medium';
     const slug = mapResultToSeason(season, contrast).templateId;
-    
     const baseUrl = env.APP_BASE_URL;
 
     // 1. Paid Greeting
     await sendText(env, userId, "Баярлалаа. Төлбөр баталгаажлаа. Танд зориулсан 40 өнгө бүхий 'Ring Palette' болон таны зайлсхийх ёстой өнгөнүүдийн жагсаалтыг бэлдлээ. Мөн таны нүүр будалт, үсний өнгө, хувцаслалтад зориулсан мэргэжлийн зөвлөмжийг хүргэж байна.");
 
-    // 2. Deliver Rings
-    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/harmony_rings.png`);
-    await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/avoid_rings.png`);
+    // 2. Personalized Composition
+    const userFace = await env.R2_IMAGES.get(`user_face_${userId}.jpg`);
+    if (userFace) {
+        const faceBuffer = await userFace.arrayBuffer();
+        
+        // Define templates (Stored in R2_ASSETS)
+        const harmonyTemplate = `${baseUrl}/assets/rings/${slug}/harmony_rings.png`;
+        const avoidTemplate = `${baseUrl}/assets/rings/${slug}/avoid_rings.png`;
 
-    // 3. Deliver recommendations (Example logic: reuse cards or send text)
-    // The prompt says "Deliver the mapped harmony_rings.png and avoid_rings.png".
-    // And "Professional recommendations for makeup, hair, clothing".
-    
+        // Compose Harmony
+        const harmonyComposed = await composePersonalizedPalette(env, faceBuffer, harmonyTemplate);
+        if (harmonyComposed) {
+            const key = `composed/${userId}/harmony.png`;
+            await env.R2_IMAGES.put(key, harmonyComposed);
+            await sendImage(env, userId, `${baseUrl}/user-images/${key}`);
+        }
+
+        // Compose Avoid
+        const avoidComposed = await composePersonalizedPalette(env, faceBuffer, avoidTemplate);
+        if (avoidComposed) {
+            const key = `composed/${userId}/avoid.png`;
+            await env.R2_IMAGES.put(key, avoidComposed);
+            await sendImage(env, userId, `${baseUrl}/user-images/${key}`);
+        }
+    } else {
+        // Fallback to static rings if face not found
+        await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/harmony_rings.png`);
+        await sendImage(env, userId, `${baseUrl}/assets/rings/${slug}/avoid_rings.png`);
+    }
+
+    // 3. Deliver recommendations
     await sendText(env, userId, `✨ МЭРГЭЖЛИЙН ЗӨВЛӨМЖ (${details.nameMn}) ✨
 
 Үсний өнгө: ${details.descriptionMn}
@@ -168,6 +188,10 @@ async function handleImageAnalysis(env: Env, job: QueueJob): Promise<ProcessResu
   
   // 1. Fetch & Hash
   const imageBuffer = await fetchImage(imageUrl);
+  
+  // Store original for composition (Associate with User ID)
+  await env.R2_IMAGES.put(`user_face_${job.userId}.jpg`, imageBuffer);
+
   const hash = await hashImage(imageBuffer);
   const cacheKey = `imagehash:${hash}`;
 
